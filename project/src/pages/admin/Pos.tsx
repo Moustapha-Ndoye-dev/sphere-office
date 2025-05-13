@@ -18,6 +18,7 @@ import { getProducts, getCategories } from '../../services/products';
 import { createOrder } from '../../services/orders';
 import { formatPrice, calculateCartTotal } from '../../lib/utils';
 import { Invoice } from '../../components/ui/Invoice';
+import { LoadingSpinner } from '../../components/LoadingSpinner';
 
 export function Pos() {
   const [searchTerm, setSearchTerm] = React.useState('');

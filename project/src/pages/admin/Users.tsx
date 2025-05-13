@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import toast from 'react-hot-toast';
 import { createUser, deleteUser, getUsers } from '../../services/users';
 import { getCurrentUser } from '../../services/auth';
+import { LoadingSpinner } from '../../components/LoadingSpinner';
 
 interface User {
   id: string;
@@ -135,7 +136,7 @@ export function Users() {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+        <LoadingSpinner variant="logo" size="lg" text="Chargement des utilisateurs..." />
       </div>
     );
   }

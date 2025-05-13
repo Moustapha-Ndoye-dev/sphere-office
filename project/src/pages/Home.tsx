@@ -66,7 +66,7 @@ export function Home() {
     {
       icon: Truck,
       title: 'Expédition rapide',
-      description: 'Livraison sous 24-48h partout en France',
+      description: 'Livraison sous 24-48h partout au Sénégal',
       color: 'from-blue-500 to-blue-600'
     },
     {

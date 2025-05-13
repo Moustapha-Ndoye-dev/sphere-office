@@ -74,7 +74,7 @@ export async function getUsers() {
       if (profiles && profiles.length > 0) {
         console.log(`${profiles.length} profils trouvés`);
         return profiles.map(profile => ({
-          id: profile.user_id,
+          id: profile.id_profiles,
           email: profile.login,
           role: profile.role as 'admin' | 'cashier'
         }));
@@ -177,21 +177,17 @@ export async function getUsers() {
  * @returns Succès de l'opération
  */
 export async function deleteUser(userId: string) {
+  if (!userId) throw new Error("ID utilisateur manquant");
+  // Supprimer le profil par id_profiles
+  const { error: profileError } = await supabase
+    .from('profiles')
+    .delete()
+    .eq('id_profiles', userId);
+  if (profileError) {
+    console.warn("Impossible de supprimer le profil:", profileError);
+    throw profileError;
+  }
   try {
-    // D'abord supprimer le profil pour être sûr
-    try {
-      const { error: profileError } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('user_id', userId);
-        
-      if (profileError) {
-        console.warn("Impossible de supprimer le profil:", profileError);
-      }
-    } catch (profileErr) {
-      console.warn("Erreur lors de la suppression du profil:", profileErr);
-    }
-    
     // MÉTHODE 1: Utiliser la fonction RPC
     try {
       const { error: rpcError } = await supabase.rpc('delete_user_with_profile', {

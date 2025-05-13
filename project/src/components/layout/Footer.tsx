@@ -1,198 +1,122 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Facebook, Instagram, Linkedin, Mail, Phone, ArrowUp, GitBranch as BrandTiktok, Clock, MapPin } from 'lucide-react';
-import { useQuery } from '@tanstack/react-query';
-import { supabase } from '../../lib/supabase';
 
-export function Footer() {
-  const { data: settings } = useQuery({
-    queryKey: ['site-settings'],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from('site_settings')
-        .select('*')
-        .single();
-      if (error) throw error;
-      return data;
-    },
-  });
-
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
+// Footer complet (desktop)
+function DesktopFooter() {
   return (
-    <footer className="bg-gray-100 dark:bg-gray-900 text-gray-600 dark:text-gray-400">
+    <footer className="bg-gray-900 text-gray-300">
       <div className="container mx-auto px-4 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* À propos */}
           <div>
-            <div className="flex items-center mb-4">
-              {settings?.logo ? (
-                <img 
-                  src={settings.logo} 
-                  alt="Sphere Office"
-                  className="h-8 w-auto mr-2"
-                />
-              ) : (
-                <h3 className="text-xl font-bold text-gray-800 dark:text-gray-200">
-                  Sphere Office
-                </h3>
-              )}
-            </div>
-            <p className="text-gray-600 dark:text-gray-400 mb-4">
-              Votre partenaire de confiance pour tous vos besoins en fournitures de bureau.
+            <h4 className="text-lg font-semibold text-white mb-4">À propos</h4>
+            <p className="text-gray-400 mb-4">
+              Sphere Office, votre spécialiste en fournitures de bureau au Sénégal. Qualité, service et innovation pour votre espace de travail.
             </p>
-            <div className="flex items-center space-x-4">
-              {settings?.facebook_url && (
-                <a 
-                  href={settings.facebook_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
-                  aria-label="Facebook"
-                >
-                  <Facebook className="h-5 w-5" />
-                </a>
-              )}
-              {settings?.instagram_url && (
-                <a 
-                  href={settings.instagram_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
-                  aria-label="Instagram"
-                >
-                  <Instagram className="h-5 w-5" />
-                </a>
-              )}
-              {settings?.linkedin_url && (
-                <a 
-                  href={settings.linkedin_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
-                  aria-label="LinkedIn"
-                >
-                  <Linkedin className="h-5 w-5" />
-                </a>
-              )}
-              {settings?.tiktok_url && (
-                <a 
-                  href={settings.tiktok_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
-                  aria-label="TikTok"
-                >
-                  <BrandTiktok className="h-5 w-5" />
-                </a>
-              )}
+            {/* Réseaux sociaux (à compléter si besoin) */}
+            <div className="flex space-x-4 mt-2">
+              {/* <a href="#" className="text-gray-400 hover:text-white transition-colors">Facebook</a> */}
             </div>
           </div>
-
-          {/* Navigation */}
+          {/* Liens rapides */}
           <div>
-            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">
-              Navigation
-            </h3>
+            <h4 className="text-lg font-semibold text-white mb-4">Liens rapides</h4>
             <ul className="space-y-2">
-              <li>
-                <Link to="/products" className="text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">
-                  Produits
-                </Link>
-              </li>
-              <li>
-                <Link to="/categories" className="text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">
-                  Catégories
-                </Link>
-              </li>
-              <li>
-                <Link to="/about" className="text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">
-                  À propos
-                </Link>
-              </li>
-              <li>
-                <Link to="/contact" className="text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">
-                  Contact
-                </Link>
-              </li>
+              <li><Link to="/products" className="text-gray-400 hover:text-white transition-colors">Nos produits</Link></li>
+              <li><Link to="/about" className="text-gray-400 hover:text-white transition-colors">À propos</Link></li>
+              <li><Link to="/contact" className="text-gray-400 hover:text-white transition-colors">Contact</Link></li>
+              <li><Link to="/cart" className="text-gray-400 hover:text-white transition-colors">Panier</Link></li>
             </ul>
           </div>
-
           {/* Contact */}
           <div>
-            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">
-              Contact
-            </h3>
+            <h4 className="text-lg font-semibold text-white mb-4">Contact</h4>
             <ul className="space-y-3">
-              {settings?.location_phone && (
-                <li className="flex items-center">
-                  <Phone className="h-5 w-5 text-gray-500 dark:text-gray-400 mr-3" />
-                  <a href={`tel:${settings.location_phone}`} className="text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">
-                    {settings.location_phone}
-                  </a>
-                </li>
-              )}
-              {settings?.location_email && (
-                <li className="flex items-center">
-                  <Mail className="h-5 w-5 text-gray-500 dark:text-gray-400 mr-3" />
-                  <a href={`mailto:${settings.location_email}`} className="text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 transition-colors">
-                    {settings.location_email}
-                  </a>
-                </li>
-              )}
-              <li className="flex items-center">
-                <Clock className="h-5 w-5 text-gray-500 dark:text-gray-400 mr-3" />
-                <span className="text-gray-600 dark:text-gray-400">
-                  Ouvert de 8h à 18h
-                </span>
+              <li className="flex items-start space-x-3">
+                <span className="text-primary-500 mt-0.5">📍</span>
+                <span className="text-gray-400">123 Avenue de la République<br />Dakar, Sénégal</span>
+              </li>
+              <li className="flex items-center space-x-3">
+                <span className="text-primary-500">📞</span>
+                <span className="text-gray-400">+221 33 123 45 67</span>
+              </li>
+              <li className="flex items-center space-x-3">
+                <span className="text-primary-500">✉️</span>
+                <span className="text-gray-400">contact@sphereoffice.sn</span>
               </li>
             </ul>
           </div>
-
-          {/* Adresse */}
+          {/* Horaires */}
           <div>
-            <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">
-              Notre adresse
-            </h3>
-            <div className="flex items-start">
-              <MapPin className="h-5 w-5 text-gray-500 dark:text-gray-400 mr-3 mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="text-gray-600 dark:text-gray-400">
-                  {settings?.location_address}
-                </p>
-                {settings?.location_link && (
-                  <a 
-                    href={settings.location_link}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-block mt-2 text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
-                  >
-                    Voir sur la carte
-                  </a>
-                )}
-              </div>
-            </div>
+            <h4 className="text-lg font-semibold text-white mb-4">Horaires d'ouverture</h4>
+            <ul className="space-y-2">
+              <li className="flex items-center space-x-3"><span className="text-primary-500">🕒</span><span className="text-gray-400">Lundi - Vendredi: 8h - 18h</span></li>
+              <li className="flex items-center space-x-3"><span className="text-primary-500">🕒</span><span className="text-gray-400">Samedi: 9h - 17h</span></li>
+              <li className="flex items-center space-x-3"><span className="text-primary-500">🕒</span><span className="text-gray-400">Dimanche: Fermé</span></li>
+            </ul>
           </div>
         </div>
-
-        {/* Séparateur */}
-        <div className="border-t border-gray-200 dark:border-gray-800 pt-8 mt-8">
+      </div>
+      <div className="border-t border-gray-800">
+        <div className="container mx-auto px-4 py-6">
           <div className="flex flex-col md:flex-row justify-between items-center">
-            <p className="text-gray-600 dark:text-gray-400 text-sm text-center md:text-left">
-              © {new Date().getFullYear()} Sphere Office. Tous droits réservés.
-            </p>
-            <button
-              onClick={scrollToTop}
-              className="mt-4 md:mt-0 flex items-center text-gray-600 hover:text-gray-800 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
-            >
-              <span className="mr-2">Haut de la page</span>
-              <ArrowUp className="h-4 w-4" />
-            </button>
+            <p className="text-gray-400 text-sm">© {new Date().getFullYear()} Sphere Office. Tous droits réservés.</p>
+            <div className="flex space-x-6 mt-4 md:mt-0">
+              <Link to="/privacy" className="text-gray-400 hover:text-white text-sm transition-colors">Politique de confidentialité</Link>
+              <Link to="/terms" className="text-gray-400 hover:text-white text-sm transition-colors">Conditions d'utilisation</Link>
+            </div>
           </div>
         </div>
       </div>
     </footer>
   );
+}
+
+// Footer mobile (Jumia style)
+function MobileFooter() {
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+  return (
+    <footer className="bg-gray-900 text-gray-300 text-center pt-8 pb-4">
+      <div className="mb-4">
+        <button
+          onClick={scrollToTop}
+          className="mx-auto flex items-center justify-center gap-2 px-4 py-2 bg-gray-800 text-white rounded-full hover:bg-primary-600 transition-colors text-sm font-medium"
+        >
+          <span>HAUT DE LA PAGE</span>
+          <span className="text-lg">↑</span>
+        </button>
+      </div>
+      <div className="flex flex-wrap justify-center gap-x-6 gap-y-2 mb-4 text-sm">
+        <Link to="/products" className="hover:text-primary-400 transition-colors">NOS PRODUITS</Link>
+        <Link to="/about" className="hover:text-primary-400 transition-colors">À PROPOS</Link>
+        <Link to="/contact" className="hover:text-primary-400 transition-colors">CONTACT</Link>
+      </div>
+      <div className="mb-4 text-sm text-gray-400">
+        <div className="flex flex-col sm:flex-row justify-center items-center gap-x-6 gap-y-1">
+          <span>📍 123 Avenue de la République, Dakar, Sénégal</span>
+          <span>📞 +221 33 123 45 67</span>
+          <span>✉️ contact@sphereoffice.sn</span>
+        </div>
+      </div>
+      <hr className="border-gray-800 my-4 w-11/12 mx-auto" />
+      <div className="text-xs text-gray-500">
+        Tous Droits Réservés &copy; {new Date().getFullYear()} Sphere Office
+      </div>
+    </footer>
+  );
+}
+
+// Composant principal qui choisit la version selon la taille d'écran
+export function Footer() {
+  // Utilisation d'un media query pour détecter le mobile
+  const [isMobile, setIsMobile] = React.useState(false);
+  React.useEffect(() => {
+    const checkMobile = () => setIsMobile(window.innerWidth < 768);
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+  return isMobile ? <MobileFooter /> : <DesktopFooter />;
 }
