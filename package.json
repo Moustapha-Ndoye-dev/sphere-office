@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "@types/jsonwebtoken": "^9.0.9",
+    "bcryptjs": "^3.0.2",
+    "framer-motion": "^12.10.5",
+    "jsonwebtoken": "^9.0.2"
+  }
+}
