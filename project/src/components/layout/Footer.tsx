@@ -96,7 +96,7 @@ function MobileFooter() {
       <div className="mb-4 text-sm text-gray-400">
         <div className="flex flex-col sm:flex-row justify-center items-center gap-x-6 gap-y-1">
           <span>📍 111, Avenue Blaise Diagne</span>
-          <span>📞 +221 33 848 45 68</span>
+          <span>📞 +221 33 848 46 68</span>
           <span>✉️ ibrahimadiawo582@gmail.com</span>
         </div>
       </div>
