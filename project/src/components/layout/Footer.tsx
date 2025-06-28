@@ -34,15 +34,15 @@ function DesktopFooter() {
             <ul className="space-y-3">
               <li className="flex items-start space-x-3">
                 <span className="text-primary-500 mt-0.5">📍</span>
-                <span className="text-gray-400">123 Avenue de la République<br />Dakar, Sénégal</span>
+                <span className="text-gray-400">111, Avenue Blaise Diagne<br />Dakar, Sénégal</span>
               </li>
               <li className="flex items-center space-x-3">
                 <span className="text-primary-500">📞</span>
-                <span className="text-gray-400">+221 33 123 45 67</span>
+                <span className="text-gray-400">+221 33 848 46 68</span>
               </li>
               <li className="flex items-center space-x-3">
                 <span className="text-primary-500">✉️</span>
-                <span className="text-gray-400">contact@sphereoffice.sn</span>
+                <span className="text-gray-400">ibrahimadiawo582@gmail.com</span>
               </li>
             </ul>
           </div>
