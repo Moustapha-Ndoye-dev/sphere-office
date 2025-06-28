@@ -50,8 +50,8 @@ function DesktopFooter() {
           <div>
             <h4 className="text-lg font-semibold text-white mb-4">Horaires d'ouverture</h4>
             <ul className="space-y-2">
-              <li className="flex items-center space-x-3"><span className="text-primary-500">🕒</span><span className="text-gray-400">Lundi - Vendredi: 8h - 18h</span></li>
-              <li className="flex items-center space-x-3"><span className="text-primary-500">🕒</span><span className="text-gray-400">Samedi: 9h - 17h</span></li>
+              <li className="flex items-center space-x-3"><span className="text-primary-500">🕒</span><span className="text-gray-400">Lundi - Vendredi: 10h - 19h</span></li>
+              <li className="flex items-center space-x-3"><span className="text-primary-500">🕒</span><span className="text-gray-400">Samedi: 10h - 17h</span></li>
               <li className="flex items-center space-x-3"><span className="text-primary-500">🕒</span><span className="text-gray-400">Dimanche: Fermé</span></li>
             </ul>
           </div>
@@ -95,9 +95,9 @@ function MobileFooter() {
       </div>
       <div className="mb-4 text-sm text-gray-400">
         <div className="flex flex-col sm:flex-row justify-center items-center gap-x-6 gap-y-1">
-          <span>📍 123 Avenue de la République, Dakar, Sénégal</span>
-          <span>📞 +221 33 123 45 67</span>
-          <span>✉️ contact@sphereoffice.sn</span>
+          <span>📍 111, Avenue Blaise Diagne</span>
+          <span>📞 +221 33 848 45 68</span>
+          <span>✉️ ibrahimadiawo582@gmail.com</span>
         </div>
       </div>
       <hr className="border-gray-800 my-4 w-11/12 mx-auto" />
