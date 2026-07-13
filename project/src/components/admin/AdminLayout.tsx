@@ -1,41 +1,48 @@
 import React from 'react';
-import { Outlet, NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink, useLocation } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '../../store/auth';
 import { signOut } from '../../lib/auth';
+import { supabase } from '../../lib/supabase';
+import { useSiteFavicon } from '../../hooks/useSiteFavicon';
 import {
   LayoutDashboard,
   Package,
-  ShoppingBag, 
-  Tag, 
-  Star, 
+  ShoppingBag,
+  Tag,
   Users,
-  BarChart, 
-  Percent, 
+  BarChart,
+  Percent,
   Bell,
   Settings,
-  LogOut, 
-  Menu, 
-  X,
-  ShoppingCart
+  LogOut,
+  Menu,
+  ShoppingCart,
+  ChevronLeft,
+  User,
+  ClipboardList,
 } from 'lucide-react';
-import { QueryClient } from '@tanstack/react-query';
 
 export function AdminLayout() {
-  const [isSidebarOpen, setIsSidebarOpen] = React.useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = React.useState(() => window.innerWidth >= 1280);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = React.useState(false);
   const user = useAuthStore((state) => state.user);
-  const navigate = useNavigate();
   const location = useLocation();
 
-  // Effet pour forcer le rechargement des données lors du changement de page
+  const { data: settings } = useQuery({
+    queryKey: ['site-settings'],
+    queryFn: async () => {
+      const { data, error } = await supabase.from('site_settings').select('favicon,logo').single();
+      if (error) throw error;
+      return data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+
+  useSiteFavicon(settings?.favicon, settings?.logo);
+
   React.useEffect(() => {
-    // Invalidate queries when navigating between admin pages to ensure fresh data
-    const queryClient = new QueryClient();
-    queryClient.invalidateQueries({ queryKey: ['users'] });
-    queryClient.invalidateQueries({ queryKey: ['products'] });
-    queryClient.invalidateQueries({ queryKey: ['orders'] });
-    
-    console.log('Admin navigation to:', location.pathname);
+    setIsMobileSidebarOpen(false);
   }, [location.pathname]);
 
   const handleSignOut = async () => {
@@ -46,164 +53,231 @@ export function AdminLayout() {
     }
   };
 
-  const isAdmin = user?.role === 'admin';
+  const { data: pendingCount = 0 } = useQuery({
+    queryKey: ['pending-orders-count'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('orders')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'pending');
+      if (error) return 0;
+      return count ?? 0;
+    },
+    refetchInterval: 60000,
+  });
+
+  const { data: pendingProductRequestsCount = 0 } = useQuery({
+    queryKey: ['pending-product-requests-count'],
+    queryFn: async () => {
+      const { count, error } = await supabase
+        .from('product_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('status', 'pending');
+      if (error) return 0;
+      return count ?? 0;
+    },
+    refetchInterval: 60000,
+  });
+
+  const isSuperAdmin = user?.role === 'superadmin';
+  const isAdmin = user?.role === 'admin' || isSuperAdmin;
   const isCashier = user?.role === 'cashier';
+  const roleLabel = user?.role === 'superadmin'
+    ? 'Super administrateur'
+    : user?.role === 'admin'
+      ? 'Administrateur'
+      : 'Caissier';
 
   const menuItems = [
-    { name: 'Tableau de bord', path: '/admin/dashboard', icon: <LayoutDashboard className="h-5 w-5" />, adminOnly: true },
-    { name: 'Produits', path: '/admin/products', icon: <Package className="h-5 w-5" />, adminOnly: true },
-    { name: 'Commandes', path: '/admin/orders', icon: <ShoppingBag className="h-5 w-5" />, adminOnly: true },
-    { name: 'Catégories', path: '/admin/categories', icon: <Tag className="h-5 w-5" />, adminOnly: true },
-    { name: 'Clients', path: '/admin/customers', icon: <Users className="h-5 w-5" />, adminOnly: true },
-    { name: 'Caisse', path: '/admin/pos', icon: <ShoppingCart className="h-5 w-5" />, adminOnly: false },
-    { name: 'Statistiques', path: '/admin/analytics', icon: <BarChart className="h-5 w-5" />, adminOnly: true },
-    { name: 'Promotions', path: '/admin/promotions', icon: <Percent className="h-5 w-5" />, adminOnly: true },
-    { name: 'Notifications', path: '/admin/notifications', icon: <Bell className="h-5 w-5" />, adminOnly: false },
-    { name: 'Utilisateurs', path: '/admin/users', icon: <Users className="h-5 w-5" />, adminOnly: true },
-    { name: 'Paramètres', path: '/admin/settings', icon: <Settings className="h-5 w-5" />, adminOnly: true },
+    { name: 'Tableau de bord', path: '/admin/dashboard', icon: LayoutDashboard, adminOnly: true },
+    { name: 'Produits', path: '/admin/products', icon: Package, adminOnly: true },
+    { name: 'Commandes', path: '/admin/orders', icon: ShoppingBag, adminOnly: true },
+    { name: 'Demandes produits', path: '/admin/product-requests', icon: ClipboardList, adminOnly: false },
+    { name: 'Catégories', path: '/admin/categories', icon: Tag, adminOnly: true },
+    { name: 'Clients', path: '/admin/customers', icon: Users, adminOnly: true },
+    { name: 'Caisse', path: '/admin/pos', icon: ShoppingCart, adminOnly: false },
+    { name: 'Statistiques', path: '/admin/analytics', icon: BarChart, adminOnly: true },
+    { name: 'Promotions', path: '/admin/promotions', icon: Percent, adminOnly: true },
+    { name: 'Notifications', path: '/admin/notifications', icon: Bell, adminOnly: false },
+    { name: 'Utilisateurs', path: '/admin/users', icon: Users, adminOnly: true, superAdminOnly: true },
+    { name: 'Paramètres', path: '/admin/settings', icon: Settings, adminOnly: true },
+    { name: 'Mon compte', path: '/admin/account', icon: User, adminOnly: false },
   ];
 
-  const filteredMenuItems = menuItems.filter(item => {
-    // Si l'utilisateur est admin, montrer tous les items
+  const filteredMenuItems = menuItems.filter((item) => {
+    if ('superAdminOnly' in item && item.superAdminOnly) return isSuperAdmin;
     if (isAdmin) return true;
-    
-    // Si l'utilisateur est caissier, montrer seulement les items non adminOnly
     if (isCashier) return !item.adminOnly;
-    
-    // Par défaut, ne rien montrer
     return false;
   });
 
-  const toggleSidebar = () => {
-    setIsSidebarOpen(!isSidebarOpen);
-  };
+  const userInitials = user?.email
+    ? user.email.slice(0, 2).toUpperCase()
+    : 'AD';
 
-  const toggleMobileSidebar = () => {
-    setIsMobileSidebarOpen(!isMobileSidebarOpen);
-  };
-
-  return (
-    <div className="flex h-screen bg-gray-100 dark:bg-gray-900">
-      {/* Sidebar for desktop */}
-      <div 
-        className={`hidden md:flex flex-col ${
-          isSidebarOpen ? 'w-64' : 'w-20'
-        } bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 transition-all duration-300 ease-in-out`}
-      >
-        <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200 dark:border-gray-700">
-          <h1 className={`text-xl font-bold text-gray-900 dark:text-white ${!isSidebarOpen && 'hidden'}`}>
-            Admin Panel
-          </h1>
-          <button 
-            onClick={toggleSidebar}
-            className="p-2 rounded-md text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white focus:outline-none"
-          >
-            <Menu className="h-5 w-5" />
-          </button>
-        </div>
-        <div className="flex-1 overflow-y-auto py-4 px-3">
-          <nav className="space-y-1">
-            {filteredMenuItems.map((item) => (
-              <NavLink
-                key={item.path}
-                to={item.path}
-                className={({ isActive }) =>
-                  `flex items-center px-3 py-2 text-sm font-medium rounded-md ${
-                    isActive
-                      ? 'bg-primary-100 text-primary-900 dark:bg-primary-900/20 dark:text-primary-300'
-                      : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
-                  }`
-                }
-              >
-                <span className="mr-3">{item.icon}</span>
-                {isSidebarOpen && <span>{item.name}</span>}
-              </NavLink>
-            ))}
-          </nav>
-        </div>
-        <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-          <button
-            onClick={handleSignOut}
-            className="flex items-center w-full px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900/20 rounded-md"
-          >
-            <LogOut className="h-5 w-5 mr-3" />
-            {isSidebarOpen && <span>Déconnexion</span>}
-          </button>
-        </div>
+  const SidebarContent = ({ collapsed }: { collapsed?: boolean }) => (
+    <>
+      {/* Logo */}
+      <div className={`flex h-16 items-center border-b border-slate-800/60 ${collapsed ? 'justify-center px-3' : 'justify-between px-5'}`}>
+        {!collapsed && (
+          <div>
+            <span className="font-display text-lg font-bold tracking-tight text-white">
+              Sphère<span className="text-sky-400">.</span>
+            </span>
+            <span className="ml-2 rounded-full bg-sky-950 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-sky-300">
+              admin
+            </span>
+          </div>
+        )}
+        {collapsed && (
+          <span className="font-display text-xl font-bold text-white">
+            S<span className="text-sky-400">.</span>
+          </span>
+        )}
       </div>
 
-      {/* Mobile sidebar */}
-      <div
-        className={`fixed inset-0 z-40 md:hidden ${
-          isMobileSidebarOpen ? 'block' : 'hidden'
+      {/* Nav */}
+      <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
+        {filteredMenuItems.map((item) => (
+          <NavLink
+            key={item.path}
+            to={item.path}
+            className={({ isActive }) =>
+              `relative group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 ${
+                isActive
+                  ? 'bg-sky-950/60 text-sky-300 shadow-[inset_0_0_0_1px_rgba(14,165,233,0.2)]'
+                  : 'text-slate-400 hover:bg-slate-800/60 hover:text-slate-200'
+              } ${collapsed ? 'justify-center' : ''}`
+            }
+            title={collapsed ? item.name : undefined}
+          >
+            {({ isActive }) => (
+              <>
+                <item.icon
+                  className={`h-4 w-4 shrink-0 transition-colors ${isActive ? 'text-sky-400' : 'text-slate-500 group-hover:text-slate-300'}`}
+                />
+                {!collapsed && <span>{item.name}</span>}
+                {item.path === '/admin/orders' && pendingCount > 0 && (
+                  collapsed ? (
+                    <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-red-500 border border-slate-950" />
+                  ) : (
+                    <span className="ml-auto flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                      {pendingCount > 99 ? '99+' : pendingCount}
+                    </span>
+                  )
+                )}
+                {item.path === '/admin/product-requests' && pendingProductRequestsCount > 0 && (
+                  collapsed ? (
+                    <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-amber-500 border border-slate-950" />
+                  ) : (
+                    <span className="ml-auto flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-slate-950">
+                      {pendingProductRequestsCount > 99 ? '99+' : pendingProductRequestsCount}
+                    </span>
+                  )
+                )}
+              </>
+            )}
+          </NavLink>
+        ))}
+      </nav>
+
+      {/* User & Sign out */}
+      <div className="border-t border-slate-800/60 p-3 space-y-1">
+        {!collapsed && user && (
+          <div className="flex items-center gap-3 rounded-xl px-3 py-2.5">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-sky-900 text-xs font-bold text-sky-200">
+              {userInitials}
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-xs font-medium text-slate-300">{user.email}</p>
+              <p className="text-[10px] uppercase tracking-[0.16em] text-slate-500">
+                {roleLabel}
+              </p>
+            </div>
+          </div>
+        )}
+        <button
+          onClick={handleSignOut}
+          className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-400 transition-all hover:bg-red-950/40 hover:text-red-400 ${collapsed ? 'justify-center' : ''}`}
+          title={collapsed ? 'Déconnexion' : undefined}
+        >
+          <LogOut className="h-4 w-4 shrink-0" />
+          {!collapsed && <span>Déconnexion</span>}
+        </button>
+      </div>
+    </>
+  );
+
+  return (
+    <div className="admin-shell flex h-screen bg-slate-100 dark:bg-slate-950">
+      {/* Desktop sidebar */}
+      <aside
+        className={`hidden md:flex flex-col bg-slate-950 border-r border-slate-800/60 transition-all duration-300 ease-in-out ${
+          isSidebarOpen ? 'w-60' : 'w-16'
         }`}
       >
-        <div className="fixed inset-0 bg-gray-600 bg-opacity-75" onClick={toggleMobileSidebar}></div>
-        <div className="fixed inset-y-0 left-0 flex flex-col w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
-          <div className="flex items-center justify-between h-16 px-4 border-b border-gray-200 dark:border-gray-700">
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-              Admin Panel
-            </h1>
-            <button 
-              onClick={toggleMobileSidebar}
-              className="p-2 rounded-md text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white focus:outline-none"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-          <div className="flex-1 overflow-y-auto py-4 px-3">
-            <nav className="space-y-1">
-              {filteredMenuItems.map((item) => (
-                <NavLink
-                  key={item.path}
-                  to={item.path}
-                  className={({ isActive }) =>
-                    `flex items-center px-3 py-2 text-sm font-medium rounded-md ${
-                      isActive
-                        ? 'bg-primary-100 text-primary-900 dark:bg-primary-900/20 dark:text-primary-300'
-                        : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-700'
-                    }`
-                  }
-                  onClick={toggleMobileSidebar}
-                >
-                  <span className="mr-3">{item.icon}</span>
-                  <span>{item.name}</span>
-                </NavLink>
-              ))}
-            </nav>
-          </div>
-          <div className="p-4 border-t border-gray-200 dark:border-gray-700">
-              <button
-              onClick={handleSignOut}
-              className="flex items-center w-full px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-100 dark:text-red-400 dark:hover:bg-red-900/20 rounded-md"
-              >
-              <LogOut className="h-5 w-5 mr-3" />
-              <span>Déconnexion</span>
-              </button>
-            </div>
-          </div>
+        <SidebarContent collapsed={!isSidebarOpen} />
+      </aside>
+
+      {/* Mobile sidebar overlay */}
+      {isMobileSidebarOpen && (
+        <div className="fixed inset-0 z-50 md:hidden">
+          <div
+            className="absolute inset-0 bg-slate-950/70 backdrop-blur-sm"
+            onClick={() => setIsMobileSidebarOpen(false)}
+          />
+          <aside className="absolute inset-y-0 left-0 flex w-64 flex-col bg-slate-950 border-r border-slate-800/60 animate-slide-in-left">
+            <SidebarContent />
+          </aside>
         </div>
+      )}
 
       {/* Main content */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <header className="bg-white dark:bg-gray-800 shadow-sm z-10">
-          <div className="px-4 sm:px-6 lg:px-8 py-4 flex items-center justify-between">
+      <div className="flex flex-1 flex-col overflow-hidden">
+        {/* Top bar */}
+        <header className="flex h-16 items-center justify-between border-b border-slate-200 bg-white px-4 shadow-sm dark:border-slate-800 dark:bg-slate-900 sm:px-6">
+          <div className="flex items-center gap-3">
+            {/* Mobile menu toggle */}
             <button
-              className="md:hidden p-2 rounded-md text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white focus:outline-none"
-              onClick={toggleMobileSidebar}
+              className="md:hidden rounded-xl p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:hover:bg-slate-800 dark:hover:text-white transition-colors"
+              onClick={() => setIsMobileSidebarOpen(true)}
             >
-              <Menu className="h-6 w-6" />
+              <Menu className="h-5 w-5" />
             </button>
-            <div className="flex items-center">
-              {user && (
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-300 mr-2">
-                  <strong>Connecté en tant que :</strong> {(user as any).login}
-                </span>
-              )}
-            </div>
+
+            {/* Desktop sidebar toggle */}
+            <button
+              className="hidden md:flex rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200 transition-colors"
+              onClick={() => setIsSidebarOpen((v) => !v)}
+            >
+              <ChevronLeft
+                className={`h-5 w-5 transition-transform duration-300 ${!isSidebarOpen ? 'rotate-180' : ''}`}
+              />
+            </button>
+
+            {/* Current page label from location */}
+            <span className="hidden text-sm font-semibold text-slate-700 dark:text-slate-200 sm:block">
+              {filteredMenuItems.find((item) => location.pathname.startsWith(item.path))?.name ?? 'Admin'}
+            </span>
           </div>
+
+          {/* User pill */}
+          {user && (
+            <div className="flex items-center gap-2.5">
+              <div className="text-right hidden sm:block">
+                <p className="text-xs font-semibold text-slate-800 dark:text-slate-200">{user.email}</p>
+                <p className="text-[10px] uppercase tracking-[0.16em] text-slate-400">
+                  {roleLabel}
+                </p>
+              </div>
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-sky-900 text-xs font-bold text-sky-200">
+                {userInitials}
+              </div>
+            </div>
+          )}
         </header>
-        <main className="flex-1 overflow-auto bg-gray-100 dark:bg-gray-900 p-4 sm:p-6 lg:p-8">
+
+        <main className="flex-1 overflow-auto bg-slate-100 p-4 dark:bg-slate-950 sm:p-6">
           <Outlet />
         </main>
       </div>

@@ -1,25 +1,23 @@
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
+
+export type UserRole = 'superadmin' | 'admin' | 'cashier';
 
 interface User {
   id: string;
   email: string;
-  role: string;
+  role: UserRole;
 }
 
 interface AuthState {
   user: User | null;
+  isAuthLoading: boolean;
   setUser: (user: User | null) => void;
+  setAuthLoading: (isAuthLoading: boolean) => void;
 }
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set) => ({
-      user: null,
-      setUser: (user) => set({ user }),
-    }),
-    {
-      name: 'auth-storage',
-    }
-  )
-);
+export const useAuthStore = create<AuthState>()((set) => ({
+  user: null,
+  isAuthLoading: true,
+  setUser: (user) => set({ user }),
+  setAuthLoading: (isAuthLoading) => set({ isAuthLoading }),
+}));

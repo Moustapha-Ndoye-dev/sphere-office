@@ -1,8 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Database } from '../types/database';
+import type { PublicProduct } from '../services/products';
 
-type Product = Database['public']['Tables']['products']['Row'];
+type Product = PublicProduct;
 
 interface FavoritesStore {
   items: Product[];

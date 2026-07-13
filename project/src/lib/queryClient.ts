@@ -1,27 +1,12 @@
 import { QueryClient } from '@tanstack/react-query';
-import { getProducts, getCategories } from '../services/products';
 
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutes
-      cacheTime: 1000 * 60 * 30, // 30 minutes
+      staleTime: 1000 * 60 * 5,
+      gcTime: 1000 * 60 * 30,
       refetchOnWindowFocus: false,
-      retry: 1,
+      retry: 2,
     },
   },
 });
-
-// Prefetch functions
-export async function prefetchHomeData() {
-  await Promise.all([
-    queryClient.prefetchQuery({
-      queryKey: ['products', 1],
-      queryFn: () => getProducts(1),
-    }),
-    queryClient.prefetchQuery({
-      queryKey: ['categories'],
-      queryFn: getCategories,
-    }),
-  ]);
-}

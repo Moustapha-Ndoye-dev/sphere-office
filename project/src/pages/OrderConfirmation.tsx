@@ -1,296 +1,299 @@
 import React from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { CheckCircle, Phone, Mail, Truck, Clock, Calendar, ShoppingBag } from 'lucide-react';
-import { getOrderById } from '../services/orders';
+import toast from 'react-hot-toast';
+import {
+  AlertTriangle,
+  Calendar,
+  CheckCircle,
+  Clock,
+  Copy,
+  Mail,
+  MessageCircle,
+  Phone,
+  RefreshCw,
+  ShoppingBag,
+  Truck,
+} from 'lucide-react';
+import {
+  buildTrackingPath,
+  buildTrackingReference,
+  isLikelyNetworkError,
+  parseTrackingReference,
+} from '../lib/orderTracking';
+import { getPublicTrackedOrder, OrderTrackingNotFoundError } from '../services/orders';
 import { formatPrice } from '../lib/utils';
 
-export function OrderConfirmation() {
-  const { orderId } = useParams<{ orderId: string }>();
+function formatDateTime(value: string | null | undefined) {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return null;
+  return date.toLocaleString('fr-FR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
 
-  const { data: order, isLoading } = useQuery({
-    queryKey: ['order', orderId],
-    queryFn: () => getOrderById(orderId!),
-    enabled: !!orderId,
+async function copyToClipboard(value: string, message: string) {
+  try {
+    await navigator.clipboard.writeText(value);
+    toast.success(message);
+  } catch {
+    toast.error('Copie impossible. Selectionnez puis copiez la reference manuellement.');
+  }
+}
+
+export function OrderConfirmation() {
+  const { orderId = '' } = useParams<{ orderId: string }>();
+  const [searchParams] = useSearchParams();
+  const trackingToken = searchParams.get('token') || '';
+  const reference = parseTrackingReference(buildTrackingReference(orderId, trackingToken));
+
+  const {
+    data: order,
+    error,
+    isError,
+    isLoading,
+    refetch,
+  } = useQuery({
+    queryKey: ['order-confirmation', reference?.orderId, reference?.trackingToken],
+    queryFn: () => getPublicTrackedOrder(reference!.orderId, reference!.trackingToken),
+    enabled: Boolean(reference),
+    retry: false,
+    staleTime: 0,
   });
 
-  // Animation de confettis
   React.useEffect(() => {
-    const createConfetti = () => {
-      const confettiCount = 100;
-      const colors = ['#FFC107', '#FF9800', '#4CAF50', '#2196F3', '#9C27B0'];
-      
-      for (let i = 0; i < confettiCount; i++) {
-        const confetti = document.createElement('div');
-        confetti.className = 'confetti';
-        confetti.style.setProperty('--x', Math.random() * 100 + 'vw');
-        confetti.style.setProperty('--y', Math.random() * -100 + 'vh');
-        confetti.style.setProperty('--r', Math.random() * 360 + 'deg');
-        confetti.style.setProperty('--s', Math.random() * 1 + 0.5);
-        confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-        
-        document.getElementById('confetti-container')?.appendChild(confetti);
-        
-        // Suppression après l'animation
-        setTimeout(() => {
-          confetti.remove();
-        }, 3000);
-      }
+    if (!order || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const container = document.getElementById('confetti-container');
+    if (!container) return;
+
+    const colors = ['#0ea5e9', '#38bdf8', '#10b981', '#f59e0b', '#f43f5e'];
+    const timers: number[] = [];
+    Array.from({ length: 60 }).forEach((_, index) => {
+      const confetti = document.createElement('div');
+      confetti.className = 'confetti';
+      confetti.style.setProperty('--x', `${Math.random() * 100}vw`);
+      confetti.style.setProperty('--y', `${Math.random() * -100}vh`);
+      confetti.style.setProperty('--r', `${Math.random() * 360}deg`);
+      confetti.style.setProperty('--s', `${Math.random() + 0.5}`);
+      confetti.style.animationDelay = `${index * 8}ms`;
+      confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+      container.appendChild(confetti);
+      timers.push(window.setTimeout(() => confetti.remove(), 3200));
+    });
+
+    return () => {
+      timers.forEach(window.clearTimeout);
+      container.replaceChildren();
     };
-    
-    if (order) {
-      createConfetti();
-    }
   }, [order]);
+
+  if (!reference) {
+    return (
+      <div className="flex min-h-[calc(100dvh-8rem)] items-center justify-center bg-slate-50 px-4 py-16 dark:bg-slate-950">
+        <div className="max-w-md rounded-[30px] border border-amber-200 bg-white px-6 py-14 text-center shadow-[0_20px_60px_-35px_rgba(15,23,42,0.35)] dark:border-amber-900 dark:bg-slate-900">
+          <AlertTriangle className="mx-auto h-10 w-10 text-amber-500" />
+          <h1 className="mt-4 text-xl font-bold text-slate-950 dark:text-white">Lien de confirmation incomplet</h1>
+          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">Utilisez le lien securise affiche juste apres la commande.</p>
+          <Link to="/order-tracking" className="mt-6 inline-flex min-h-11 items-center justify-center rounded-full bg-sky-900 px-6 py-3 text-sm font-semibold text-white dark:bg-sky-600">
+            Ouvrir le suivi
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-[400px]">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600"></div>
+      <div className="bg-slate-50 dark:bg-slate-950">
+        <div className="container mx-auto max-w-3xl px-4 py-10">
+          <div className="mx-auto mb-8 h-24 w-24 skeleton rounded-[28px]" />
+          <div className="space-y-4">
+            <div className="skeleton mx-auto h-9 max-w-md rounded-xl" />
+            <div className="skeleton h-44 rounded-[28px]" />
+            <div className="skeleton h-64 rounded-[28px]" />
+          </div>
+        </div>
       </div>
     );
   }
 
-  if (!order) {
+  if (isError || !order) {
+    const notFound = error instanceof OrderTrackingNotFoundError;
     return (
-      <div className="container mx-auto px-4 py-8">
-        <p className="text-center text-gray-600 dark:text-gray-400">
-          Commande non trouvée
-        </p>
+      <div className="flex min-h-[calc(100dvh-8rem)] items-center justify-center bg-slate-50 px-4 py-16 dark:bg-slate-950">
+        <div className="max-w-md rounded-[30px] border border-dashed border-slate-300 bg-white px-6 py-14 text-center shadow-[0_20px_60px_-35px_rgba(15,23,42,0.35)] dark:border-slate-700 dark:bg-slate-900">
+          {notFound ? (
+            <ShoppingBag className="mx-auto h-10 w-10 text-slate-300 dark:text-slate-600" />
+          ) : (
+            <AlertTriangle className="mx-auto h-10 w-10 text-amber-500" />
+          )}
+          <h1 className="mt-4 text-xl font-bold text-slate-950 dark:text-white">
+            {notFound ? 'Commande non trouvee' : 'Confirmation temporairement indisponible'}
+          </h1>
+          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+            {notFound
+              ? 'Verifiez votre lien securise ou contactez-nous.'
+              : isLikelyNetworkError(error)
+                ? 'Verifiez votre connexion. Votre commande peut tout de meme avoir ete enregistree.'
+                : 'Une erreur est survenue pendant le chargement. Votre commande peut tout de meme avoir ete enregistree.'}
+          </p>
+          {!notFound && (
+            <button onClick={() => refetch()} className="mt-6 inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-sky-900 px-6 py-3 text-sm font-semibold text-white dark:bg-sky-600">
+              <RefreshCw className="h-4 w-4" />
+              Reessayer
+            </button>
+          )}
+        </div>
       </div>
     );
   }
 
-  // Calcul d'une date de livraison estimée (3-5 jours ouvrés)
-  const estimatedDeliveryDate = new Date();
-  estimatedDeliveryDate.setDate(estimatedDeliveryDate.getDate() + 3 + Math.floor(Math.random() * 3));
-  const formattedDeliveryDate = estimatedDeliveryDate.toLocaleDateString('fr-FR', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long'
-  });
+  const orderDate = new Date(order.created_at);
+  const trackingReference = buildTrackingReference(reference.orderId, reference.trackingToken);
+  const trackingPath = buildTrackingPath(reference);
+  const trackingUrl = `${window.location.origin}${trackingPath}`;
+  const shareMessage = `Suivi de ma commande Sphere Office : ${trackingUrl}`;
+  const estimatedDelivery = formatDateTime(order.estimated_delivery_at);
+  const steps = [
+    {
+      icon: Mail,
+      title: 'Reference de suivi',
+      text: `Conservez la reference affichee pour suivre la commande de ${order.email}.`,
+    },
+    {
+      icon: Clock,
+      title: 'Traitement de la commande',
+      text: 'Notre equipe verifie la disponibilite et vous appelle pour confirmer les details.',
+    },
+    {
+      icon: Calendar,
+      title: 'Livraison estimee',
+      text: estimatedDelivery || 'La date sera affichee des que notre equipe aura confirme le planning.',
+    },
+    {
+      icon: Truck,
+      title: 'Livraison',
+      text: 'Le statut et la date sont actualises sur la page de suivi securisee.',
+    },
+  ];
 
   return (
-    <div className="container mx-auto px-4 py-8 relative">
-      {/* Conteneur pour les confettis */}
-      <div id="confetti-container" className="fixed inset-0 pointer-events-none z-50 overflow-hidden"></div>
-      
-      <style jsx>{`
+    <div className="relative bg-slate-50 pb-20 dark:bg-slate-950">
+      <div id="confetti-container" className="pointer-events-none fixed inset-0 z-50 overflow-hidden" />
+      <style>{`
         .confetti {
           position: absolute;
-          width: 10px;
-          height: 10px;
           top: 0;
           left: var(--x);
+          width: 10px;
+          height: 10px;
           opacity: 0;
           transform: translateY(var(--y)) rotate(var(--r)) scale(var(--s));
           animation: confetti-fall 3s ease-in-out forwards;
-          z-index: 100;
         }
-        
         @keyframes confetti-fall {
-          0% {
-            opacity: 1;
-            transform: translateY(var(--y)) rotate(0) scale(var(--s));
-          }
-          100% {
-            opacity: 0;
-            transform: translateY(100vh) rotate(var(--r)) scale(var(--s));
-          }
+          0% { opacity: 1; transform: translateY(var(--y)) rotate(0) scale(var(--s)); }
+          100% { opacity: 0; transform: translateY(100vh) rotate(var(--r)) scale(var(--s)); }
         }
+        @media (prefers-reduced-motion: reduce) { .confetti { display: none; } }
       `}</style>
 
-      <div className="max-w-2xl mx-auto">
-        {/* En-tête avec icône de succès */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-20 h-20 bg-green-100 dark:bg-green-900/50 rounded-full mb-4 animate-bounce">
-            <CheckCircle className="h-10 w-10 text-green-500" />
+      <div className="border-b border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+        <div className="container mx-auto px-4 py-6 sm:py-8">
+          <div className="flex items-center gap-3">
+            <CheckCircle className="h-5 w-5 text-emerald-600 dark:text-emerald-400" />
+            <h1 className="text-xl font-bold tracking-tight text-slate-900 sm:text-2xl dark:text-slate-100">Commande enregistree</h1>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100 mb-3">
-            Commande confirmée !
-          </h1>
-          <p className="text-xl text-gray-600 dark:text-gray-400 max-w-md mx-auto">
-            Merci pour votre achat. Votre commande a été enregistrée avec succès et sera traitée rapidement.
-          </p>
+        </div>
+      </div>
+
+      <div className="container mx-auto max-w-3xl px-4 py-8">
+        <div className="mb-8 text-center">
+          <div className="mb-4 inline-flex h-24 w-24 items-center justify-center rounded-[28px] border border-emerald-200 bg-emerald-50 text-emerald-600 shadow-[0_20px_60px_-30px_rgba(5,150,105,0.45)] dark:border-emerald-900/60 dark:bg-emerald-950/30 dark:text-emerald-400">
+            <CheckCircle className="h-11 w-11" />
+          </div>
+          <h2 className="font-display text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl dark:text-white">Merci, votre commande est bien enregistree.</h2>
+          <p className="mx-auto mt-3 max-w-xl text-base leading-7 text-slate-500 dark:text-slate-400">Nous allons vous appeler pour confirmer les details et organiser la livraison.</p>
         </div>
 
-        {/* Carte avec numéro de commande */}
-        <div className="bg-gradient-to-r from-primary-600 to-primary-800 rounded-lg p-6 mb-8 text-white shadow-lg">
-          <div className="flex justify-between items-center">
+        <div className="mb-6 rounded-[28px] bg-gradient-to-br from-sky-950 to-sky-800 p-6 text-white shadow-[0_24px_70px_-35px_rgba(12,74,110,0.75)] dark:from-sky-800 dark:to-sky-600">
+          <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="text-primary-100 text-sm">Numéro de commande</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-100/70">Numero de commande</p>
               <p className="text-2xl font-bold">#{order.id.slice(0, 8).toUpperCase()}</p>
             </div>
             <ShoppingBag className="h-12 w-12 opacity-80" />
           </div>
-          <div className="mt-4 pt-4 border-t border-primary-500">
-            <div className="flex justify-between">
-              <span>Date de commande</span>
-              <span className="font-medium">{new Date().toLocaleDateString('fr-FR')}</span>
-            </div>
-            <div className="flex justify-between mt-2">
-              <span>Total</span>
-              <span className="font-bold text-xl">{formatPrice(order.total)}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Message d'appel */}
-        <div className="bg-primary-50 dark:bg-primary-900/50 rounded-lg p-6 mb-8 shadow-md">
-          <div className="flex items-start">
-            <div className="flex-shrink-0">
-              <Phone className="h-6 w-6 text-primary-600 dark:text-primary-400" />
-            </div>
-            <div className="ml-4">
-              <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">
-                Confirmation par téléphone
-              </h2>
-              <p className="mt-1 text-gray-600 dark:text-gray-400">
-                Nous vous appellerons prochainement au <span className="font-medium">{order.phone}</span> pour confirmer votre commande et organiser la livraison.
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Détails de la commande */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
-          <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4 flex items-center">
-            <ShoppingBag className="h-5 w-5 mr-2 text-primary-600" />
-            Détails de la commande
-          </h2>
-
-          <dl className="divide-y dark:divide-gray-700">
-            <div className="py-4 flex justify-between">
-              <dt className="text-gray-600 dark:text-gray-400">
-                Client
-              </dt>
-              <dd className="text-gray-900 dark:text-gray-100 font-medium">
-                {order.customer_name}
-              </dd>
-            </div>
-
-            <div className="py-4 flex justify-between">
-              <dt className="text-gray-600 dark:text-gray-400">Email</dt>
-              <dd className="text-gray-900 dark:text-gray-100 font-medium">
-                {order.email}
-              </dd>
-            </div>
-
-            <div className="py-4 flex justify-between">
-              <dt className="text-gray-600 dark:text-gray-400">Téléphone</dt>
-              <dd className="text-gray-900 dark:text-gray-100 font-medium">
-                {order.phone}
-              </dd>
-            </div>
-
-            <div className="py-4">
-              <dt className="text-gray-600 dark:text-gray-400 mb-2">
-                Adresse de livraison
-              </dt>
-              <dd className="text-gray-900 dark:text-gray-100">
-                {order.address}
-              </dd>
-            </div>
-
-            {order.notes && (
-              <div className="py-4">
-                <dt className="text-gray-600 dark:text-gray-400 mb-2">
-                  Notes
-                </dt>
-                <dd className="text-gray-900 dark:text-gray-100 italic">
-                  "{order.notes}"
-                </dd>
+          <div className="mt-4 border-t border-white/15 pt-4">
+            <div className="flex justify-between gap-4 text-sm"><span className="text-sky-100/80">Date de commande</span><span className="font-semibold">{orderDate.toLocaleDateString('fr-FR')}</span></div>
+            <div className="mt-2 flex justify-between gap-4"><span className="text-sky-100/80">Total</span><span className="text-xl font-bold">{formatPrice(order.total)}</span></div>
+            <div className="mt-4 rounded-2xl bg-white/10 px-3 py-3">
+              <p className="text-xs text-sky-100/80">Reference securisee de suivi</p>
+              <p className="mt-1 break-all font-mono text-xs">{trackingReference}</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button onClick={() => copyToClipboard(trackingReference, 'Reference copiee')} className="inline-flex min-h-10 items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-xs font-semibold hover:bg-white/20"><Copy className="h-3.5 w-3.5" />Copier la reference</button>
+                <button onClick={() => copyToClipboard(trackingUrl, 'Lien de suivi copie')} className="inline-flex min-h-10 items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-xs font-semibold hover:bg-white/20"><Copy className="h-3.5 w-3.5" />Copier le lien</button>
+                <a href={`https://wa.me/?text=${encodeURIComponent(shareMessage)}`} target="_blank" rel="noreferrer" className="inline-flex min-h-10 items-center gap-2 rounded-full bg-emerald-500/90 px-4 py-2 text-xs font-semibold hover:bg-emerald-500"><MessageCircle className="h-3.5 w-3.5" />WhatsApp</a>
               </div>
-            )}
+            </div>
+          </div>
+        </div>
+
+        <div className="mb-6 rounded-[24px] border border-sky-100 bg-sky-50/70 p-5 shadow-[0_12px_40px_-28px_rgba(15,23,42,0.3)] dark:border-sky-900/60 dark:bg-sky-950/20">
+          <div className="flex items-start gap-4">
+            <Phone className="mt-1 h-6 w-6 shrink-0 text-sky-700 dark:text-sky-300" />
+            <div><h2 className="text-lg font-semibold text-slate-950 dark:text-white">Confirmation par telephone</h2><p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">Nous vous appellerons prochainement au <span className="font-semibold">{order.phone}</span> pour confirmer votre commande et organiser la livraison.</p></div>
+          </div>
+        </div>
+
+        <div className="mb-6 rounded-[24px] border border-slate-200 bg-white p-6 shadow-[0_12px_40px_-24px_rgba(15,23,42,0.22)] dark:border-slate-800 dark:bg-slate-900">
+          <h2 className="mb-4 flex items-center text-lg font-semibold text-slate-950 dark:text-white"><ShoppingBag className="mr-2 h-5 w-5 text-sky-700 dark:text-sky-300" />Articles commandes</h2>
+          <div className="divide-y divide-slate-100 dark:divide-slate-800">
+            {order.items.map((item) => (
+              <div key={item.id} className="flex items-center justify-between gap-4 py-4 first:pt-0 last:pb-0">
+                <div className="min-w-0"><p className="truncate text-sm font-semibold text-slate-900 dark:text-slate-100">{item.item_name || item.product?.name || 'Article'}</p><p className="mt-1 text-xs text-slate-400">Quantite : {item.quantity} x {formatPrice(item.price)}</p></div>
+                <span className="shrink-0 text-sm font-semibold text-slate-900 dark:text-slate-100">{formatPrice(item.quantity * item.price)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="mb-6 rounded-[24px] border border-slate-200 bg-white p-6 shadow-[0_12px_40px_-24px_rgba(15,23,42,0.22)] dark:border-slate-800 dark:bg-slate-900">
+          <h2 className="mb-4 text-lg font-semibold text-slate-950 dark:text-white">Details de livraison</h2>
+          <dl className="divide-y divide-slate-100 dark:divide-slate-800">
+            {[
+              ['Client', order.customer_name],
+              ['Email', order.email],
+              ['Telephone', order.phone || 'A confirmer'],
+              ['Adresse', order.address || 'A confirmer'],
+              ['Livraison estimee', estimatedDelivery || 'Date a confirmer'],
+            ].map(([label, value]) => (
+              <div key={label} className="flex flex-col gap-1 py-4 sm:flex-row sm:justify-between sm:gap-6"><dt className="text-sm text-slate-500 dark:text-slate-400">{label}</dt><dd className="break-words text-sm font-semibold text-slate-900 sm:max-w-md sm:text-right dark:text-slate-100">{value}</dd></div>
+            ))}
+            {order.notes && <div className="py-4"><dt className="mb-2 text-sm text-slate-500 dark:text-slate-400">Notes</dt><dd className="text-sm italic text-slate-900 dark:text-slate-100">{order.notes}</dd></div>}
           </dl>
         </div>
 
-        {/* Prochaines étapes */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
-          <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">
-            Prochaines étapes
-          </h2>
-
-          <div className="space-y-6">
-            <div className="flex items-start">
-              <div className="flex-shrink-0 bg-primary-100 dark:bg-primary-900/50 p-2 rounded-full">
-                <Mail className="h-5 w-5 text-primary-600 dark:text-primary-400" />
-              </div>
-              <div className="ml-4">
-                <h3 className="text-md font-medium text-gray-900 dark:text-gray-100">
-                  Email de confirmation
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Un récapitulatif de votre commande a été envoyé à <span className="font-medium">{order.email}</span>
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start">
-              <div className="flex-shrink-0 bg-primary-100 dark:bg-primary-900/50 p-2 rounded-full">
-                <Clock className="h-5 w-5 text-primary-600 dark:text-primary-400" />
-              </div>
-              <div className="ml-4">
-                <h3 className="text-md font-medium text-gray-900 dark:text-gray-100">
-                  Traitement de la commande
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Votre commande est en cours de préparation dans nos entrepôts
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start">
-              <div className="flex-shrink-0 bg-primary-100 dark:bg-primary-900/50 p-2 rounded-full">
-                <Calendar className="h-5 w-5 text-primary-600 dark:text-primary-400" />
-              </div>
-              <div className="ml-4">
-                <h3 className="text-md font-medium text-gray-900 dark:text-gray-100">
-                  Date de livraison estimée
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  <span className="font-medium">{formattedDeliveryDate}</span> (sous réserve de confirmation)
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-start">
-              <div className="flex-shrink-0 bg-primary-100 dark:bg-primary-900/50 p-2 rounded-full">
-                <Truck className="h-5 w-5 text-primary-600 dark:text-primary-400" />
-              </div>
-              <div className="ml-4">
-                <h3 className="text-md font-medium text-gray-900 dark:text-gray-100">
-                  Livraison
-                </h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Nous vous communiquerons les détails de livraison lors de la confirmation téléphonique
-                </p>
-              </div>
-            </div>
+        <div className="mb-6 rounded-[24px] border border-slate-200 bg-white p-6 shadow-[0_12px_40px_-24px_rgba(15,23,42,0.22)] dark:border-slate-800 dark:bg-slate-900">
+          <h2 className="mb-5 text-lg font-semibold text-slate-950 dark:text-white">Prochaines etapes</h2>
+          <div className="space-y-5">
+            {steps.map((step) => <div key={step.title} className="flex items-start gap-4"><div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-sky-100 dark:bg-sky-950/50"><step.icon className="h-5 w-5 text-sky-700 dark:text-sky-300" /></div><div><h3 className="font-semibold text-slate-900 dark:text-slate-100">{step.title}</h3><p className="text-sm leading-6 text-slate-500 dark:text-slate-400">{step.text}</p></div></div>)}
           </div>
         </div>
 
-        {/* Contact et support */}
-        <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-8 text-center shadow-md">
-          <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-3">
-            Une question sur votre commande ?
-          </h3>
-          <p className="text-gray-600 dark:text-gray-400 mb-6 max-w-md mx-auto">
-            Notre équipe de support client est disponible pour vous aider avec toutes vos questions.
-          </p>
-          <div className="space-x-4">
-            <Link
-              to="/contact"
-              className="inline-flex items-center px-6 py-3 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-primary-600 hover:bg-primary-700 transition-colors"
-            >
-              Nous contacter
-            </Link>
-            <Link
-              to="/"
-              className="inline-flex items-center px-6 py-3 border border-gray-300 dark:border-gray-700 rounded-md shadow-sm text-base font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
-            >
-              Retour à l'accueil
-            </Link>
+        <div className="rounded-[24px] border border-slate-200 bg-white p-6 text-center shadow-[0_12px_40px_-24px_rgba(15,23,42,0.22)] dark:border-slate-800 dark:bg-slate-900">
+          <h3 className="mb-3 text-lg font-semibold text-slate-950 dark:text-white">Une question sur votre commande ?</h3>
+          <p className="mx-auto mb-6 max-w-md text-sm leading-7 text-slate-500 dark:text-slate-400">Notre equipe reste disponible pour vous aider a chaque etape.</p>
+          <div className="flex flex-col justify-center gap-3 sm:flex-row sm:flex-wrap">
+            <Link to="/contact" className="inline-flex min-h-11 items-center justify-center rounded-full bg-sky-900 px-6 py-3 text-sm font-semibold text-white dark:bg-sky-500">Nous contacter</Link>
+            <Link to={trackingPath} className="inline-flex min-h-11 items-center justify-center rounded-full border border-sky-200 bg-sky-50 px-6 py-3 text-sm font-semibold text-sky-800 dark:border-sky-900 dark:bg-sky-950/40 dark:text-sky-300">Suivre ma commande</Link>
+            <a href={`mailto:?subject=${encodeURIComponent('Suivi de commande Sphere Office')}&body=${encodeURIComponent(shareMessage)}`} className="inline-flex min-h-11 items-center justify-center rounded-full border border-slate-300 bg-white px-6 py-3 text-sm font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200">Envoyer par email</a>
           </div>
         </div>
       </div>

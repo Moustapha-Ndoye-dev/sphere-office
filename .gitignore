@@ -1,0 +1,19 @@
+# Local tooling and agent state
+.agents/
+.claude/
+.codex/
+*.log
+
+# Dependencies and generated artifacts
+node_modules/
+dist/
+*.tsbuildinfo
+
+# Local environment files
+.env
+.env.*
+!.env.example
+
+# Local project-only snapshots and builder metadata
+project/backups/
+project/.bolt/

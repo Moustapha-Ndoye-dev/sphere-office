@@ -1,13 +1,12 @@
-import React from 'react';
 
 type LoadingSpinnerProps = {
   /** Taille du spinner (small, medium, large) */
   size?: 'sm' | 'md' | 'lg';
   /** Variante du spinner (simple, pulse, logo) */
   variant?: 'simple' | 'pulse' | 'logo';
-  /** Texte à afficher sous le spinner */
+  /** Texte a afficher sous le spinner */
   text?: string;
-  /** Classes CSS personnalisées */
+  /** Classes CSS personnalisees */
   className?: string;
 };
 
@@ -28,8 +27,8 @@ export function LoadingSpinner({
       case 'pulse':
         return (
           <div className="relative">
-            <div className={`${sizeClasses[size]} rounded-full border-t-4 border-b-4 border-primary-600 animate-spin`}></div>
-            <div className={`absolute top-0 left-0 ${sizeClasses[size]} rounded-full border-t-4 border-primary-400 animate-ping opacity-20`}></div>
+            <div className={`${sizeClasses[size]} animate-spin rounded-full border-b-4 border-t-4 border-sky-700 dark:border-sky-400`}></div>
+            <div className={`absolute left-0 top-0 ${sizeClasses[size]} animate-ping rounded-full border-t-4 border-sky-400 opacity-20`}></div>
           </div>
         );
       case 'logo':
@@ -60,7 +59,7 @@ export function LoadingSpinner({
         );
       default:
         return (
-          <div className={`${sizeClasses[size]} rounded-full border-t-4 border-b-4 border-primary-600 animate-spin`}></div>
+          <div className={`${sizeClasses[size]} animate-spin rounded-full border-b-4 border-t-4 border-sky-700 dark:border-sky-400`}></div>
         );
     }
   };
@@ -69,7 +68,7 @@ export function LoadingSpinner({
     <div className={`flex flex-col items-center justify-center ${className}`}>
       {renderSpinner()}
       {text && (
-        <p className="mt-4 text-gray-600 dark:text-gray-300 text-center">{text}</p>
+        <p className="mt-4 text-center text-sm font-medium text-slate-500 dark:text-slate-400">{text}</p>
       )}
     </div>
   );

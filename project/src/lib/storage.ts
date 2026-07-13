@@ -1,6 +1,11 @@
 import { supabase } from './supabase';
 import { validateFileUpload } from './security';
-import toast from 'react-hot-toast';
+
+const FILE_EXTENSIONS: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+};
 
 export async function uploadProductImage(file: File) {
   try {
@@ -11,7 +16,8 @@ export async function uploadProductImage(file: File) {
     }
 
     // Générer un nom de fichier sécurisé
-    const fileExt = file.name.split('.').pop();
+    const fileExt = FILE_EXTENSIONS[file.type];
+    if (!fileExt) throw new Error('Format de fichier non autorise');
     const fileName = `${Date.now()}-${crypto.randomUUID()}.${fileExt}`;
     const filePath = `${fileName}`;
 
@@ -32,11 +38,9 @@ export async function uploadProductImage(file: File) {
       .from('products')
       .getPublicUrl(filePath);
 
-    toast.success('Image uploadée avec succès');
     return publicUrl;
   } catch (error) {
     console.error('Error uploading image:', error);
-    toast.error('Erreur lors de l\'upload de l\'image');
     throw error;
   }
 }
@@ -44,7 +48,12 @@ export async function uploadProductImage(file: File) {
 export async function deleteProductImage(url: string) {
   try {
     // Extraire le nom du fichier de l'URL de manière sécurisée
-    const fileName = url.split('/').pop();
+    const parsedUrl = new URL(url);
+    const storageOrigin = new URL(import.meta.env.VITE_SUPABASE_URL).origin;
+    const storagePrefix = '/storage/v1/object/public/products/';
+    if (parsedUrl.origin !== storageOrigin || !parsedUrl.pathname.startsWith(storagePrefix)) return;
+
+    const fileName = decodeURIComponent(parsedUrl.pathname.slice(storagePrefix.length));
     if (!fileName) return;
 
     // Valider le nom du fichier
@@ -61,10 +70,8 @@ export async function deleteProductImage(url: string) {
       throw error;
     }
 
-    toast.success('Image supprimée avec succès');
   } catch (error) {
     console.error('Error deleting image:', error);
-    toast.error('Erreur lors de la suppression de l\'image');
     throw error;
   }
 }

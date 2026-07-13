@@ -1,78 +1,60 @@
-# Sphere Office E-commerce
+# Sphere Office
 
-Application e-commerce pour une entreprise de fournitures de bureau, construite avec React, TypeScript et Supabase.
+Application e-commerce et back-office construite avec React, TypeScript, Vite et Supabase.
 
-## Configuration de l'authentification Supabase
+## Verification locale
 
-### Résolution des erreurs d'authentification
-
-Si vous rencontrez des erreurs lors de la création d'utilisateurs avec Supabase Auth, comme :
-```
-POST https://secbwiwphqmcbemhdvdf.supabase.co/auth/v1/signup 500 (Internal Server Error)
-Error creating user: AuthApiError: Database error saving new user
-```
-
-Cela est généralement dû à une configuration incomplète de la base de données Supabase. Suivez ces étapes pour résoudre le problème :
-
-1. **Structure de la base de données requise** : Supabase Auth nécessite une table `profiles` avec une relation vers `auth.users` pour fonctionner correctement avec les rôles utilisateur personnalisés.
-
-2. **Exécuter le script de migration** : Exécutez le script SQL suivant dans l'éditeur SQL de Supabase pour configurer correctement les tables et fonctions nécessaires :
-
-```sql
--- Chemin du fichier: project/supabase/migrations/20240501_create_user_functions.sql
+```bash
+npm install
+npm run typecheck
+npm run lint
+npm run build
+npm run preview
 ```
 
-Ce script va :
-- Créer la table `profiles` si elle n'existe pas déjà
-- Configurer les politiques RLS (Row Level Security)
-- Créer des fonctions PL/pgSQL pour gérer les utilisateurs et leurs profils
-- Mettre en place des déclencheurs (triggers) pour maintenir la cohérence des données
+## Variables d'environnement
 
-3. **Utilisation des fonctions** : L'application utilise maintenant un mécanisme de fallback pour créer des utilisateurs :
-   - D'abord avec l'API Auth standard de Supabase
-   - Si cela échoue, en utilisant une fonction RPC personnalisée `create_user_with_profile`
-
-### Confirmation automatique des utilisateurs
-
-Par défaut, Supabase envoie un email de confirmation lors de la création d'un utilisateur. Pour activer la confirmation automatique des utilisateurs (sans nécessiter de cliquer sur un lien d'email) :
-
-1. **Exécuter le script de confirmation automatique** :
-
-```sql
--- Chemin du fichier: project/supabase/migrations/20240501_autoconfirm_users.sql
+```dotenv
+VITE_SUPABASE_URL=...
+VITE_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
 ```
 
-Ce script va :
-- Créer une fonction `admin_confirm_user` pour confirmer manuellement un utilisateur
-- Tenter de désactiver l'exigence de confirmation par email au niveau système
-- Confirmer tous les utilisateurs existants qui ne sont pas encore confirmés
+- Les deux variables `VITE_*` sont publiques et utilisees par le navigateur.
+- `SUPABASE_SERVICE_ROLE_KEY` est strictement reservee aux endpoints serveur `api/`.
+- Ne jamais prefixer la cle service-role par `VITE_` et ne jamais l'exposer dans le bundle client.
 
-2. **Configuration du tableau de bord Supabase** :
-   - Connectez-vous au tableau de bord Supabase
-   - Allez dans "Authentication" > "Providers" > "Email"
-   - Désactivez l'option "Confirm email" ou "Email confirmation"
-   - Sauvegardez les modifications
+## Deploiement
 
-3. **Dans le code** : L'application utilise maintenant plusieurs méthodes pour s'assurer que les utilisateurs sont automatiquement confirmés :
-   - Définition explicite de `email_confirmed_at` lors de la création d'utilisateurs via SQL
-   - Utilisation de l'API Admin pour confirmer les utilisateurs après leur création
-   - Fonction RPC de secours pour confirmer les utilisateurs si l'API Admin échoue
+1. Appliquer, dans l'ordre, tous les fichiers de `supabase/migrations/` qui ne sont pas encore presents dans la base cible.
+2. Verifier les politiques RLS, les fonctions securisees et les politiques du bucket `products`.
+3. Configurer les trois variables d'environnement dans Vercel, avec la cle service-role uniquement cote serveur.
+4. Deployer le build Vite et verifier les en-tetes declares dans `vercel.json`.
+5. Executer un test de commande et un test back-office avec des donnees de recette dediees.
 
-### Rôles utilisateur
+Le fichier historique `SETUP_DATABASE.sql` a ete retire. Il ne faut pas reconstruire la base avec un ancien script monolithique : les migrations ordonnees sont la source de verite.
 
-L'application prend en charge deux rôles d'utilisateur :
-- **admin** : Accès complet au tableau de bord d'administration, à la gestion des utilisateurs, etc.
-- **cashier** : Accès limité pour les caissiers au point de vente (POS) et aux fonctionnalités de base.
+## Authentification et roles
 
-Les rôles sont stockés dans :
-1. Les métadonnées utilisateur de Supabase Auth (`user_metadata.role`)
-2. La table `profiles` dans la colonne `role`
+L'application ne propose pas d'inscription publique. Les comptes staff sont geres par un superadmin via l'API serveur protegee.
 
-## Dépannage supplémentaire
+- `superadmin` : administration complete et gestion des comptes Auth ;
+- `admin` : catalogue, commandes, statistiques, reglages et promotions ;
+- `cashier` : caisse, factures et fonctions staff autorisees.
 
-Si les erreurs persistent après l'exécution du script SQL :
+Les autorisations sensibles sont controlees dans PostgreSQL/RLS et dans les endpoints serveur. Les controles de route React ne constituent qu'une protection d'interface.
 
-1. Vérifiez les journaux d'erreur Supabase pour des messages plus détaillés
-2. Assurez-vous que les extensions PostgreSQL requises sont activées (`uuid-ossp`, `pgcrypto`)
-3. Vérifiez que l'utilisateur service Supabase a les permissions suffisantes
-4. Essayez de créer manuellement un utilisateur via l'interface d'administration Supabase 
+## Limites fonctionnelles explicites
+
+- Le checkout public enregistre une commande non payee ; aucun paiement en ligne n'est integre.
+- Les paiements du back-office sont des enregistrements manuels (especes, carte, Wave, etc.).
+- Le formulaire de contact ouvre le client de messagerie de l'utilisateur avec `mailto:` ; aucun service d'envoi d'email transactionnel n'est integre.
+- La reference de suivi est affichee apres la commande. Il n'existe pas encore d'envoi automatique d'email de confirmation.
+
+## Securite
+
+- Les prix, stocks et totaux du checkout sont recalcules par les RPC securisees.
+- Les tables sensibles ne sont pas lisibles avec le role anonyme.
+- Les uploads sont limites aux images JPEG, PNG et WebP valides, 5 Mo maximum.
+- La generation PDF et la gestion des utilisateurs exigent un jeton staff valide ; la gestion des utilisateurs exige le role `superadmin`.
+- Les secrets doivent rester dans les variables serveur et `.env` doit rester ignore par Git.
