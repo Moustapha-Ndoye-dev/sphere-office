@@ -1,40 +1,8 @@
-import { supabase } from './supabase';
 import { toast } from 'react-hot-toast';
 
-// Rate limiting implementation
-const rateLimits = new Map<string, { count: number; timestamp: number }>();
-
-export async function rateLimit(key: string, maxAttempts: number, windowSeconds: number, increment = false): Promise<boolean> {
-  const now = Date.now();
-  const limit = rateLimits.get(key);
-  
-  // Clean up old entries
-  if (limit && now - limit.timestamp > windowSeconds * 1000) {
-    rateLimits.delete(key);
-  }
-  
-  if (!limit) {
-    if (increment) {
-      rateLimits.set(key, { count: 1, timestamp: now });
-    }
-    return false;
-  }
-  
-  if (limit.count >= maxAttempts) {
-    return true;
-  }
-  
-  if (increment) {
-    limit.count++;
-  }
-  
-  return false;
-}
-
-// Input validation
 export function validateInput(input: unknown, type: 'email' | 'phone' | 'text' | 'number'): boolean {
   if (input === null || input === undefined) return false;
-  
+
   switch (type) {
     case 'email':
       return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(input));
@@ -43,117 +11,65 @@ export function validateInput(input: unknown, type: 'email' | 'phone' | 'text' |
     case 'text':
       return typeof input === 'string' && input.length > 0 && !/[<>]/.test(input);
     case 'number':
-      return !isNaN(Number(input)) && Number(input) >= 0;
-    default:
-      return false;
+      return !Number.isNaN(Number(input)) && Number(input) >= 0;
   }
 }
 
-// XSS Prevention
-export function escapeHtml(unsafe: string): string {
-  return unsafe
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
-}
-
-// CSRF Protection
-export function generateCsrfToken(): string {
-  return crypto.randomUUID();
-}
-
-export function validateCsrfToken(token: string): boolean {
-  const storedToken = sessionStorage.getItem('csrf_token');
-  return token === storedToken;
-}
-
-// File Upload Validation
 export async function validateFileUpload(file: File): Promise<boolean> {
   const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
-  const maxSize = 5 * 1024 * 1024; // 5MB
-  
+  const maxSize = 5 * 1024 * 1024;
+
   if (!allowedTypes.includes(file.type)) {
-    toast.error('Type de fichier non autorisé');
+    toast.error('Type de fichier non autorise');
     return false;
   }
-  
+
   if (file.size > maxSize) {
     toast.error('Fichier trop volumineux (max 5MB)');
     return false;
   }
-  
+
+  const signature = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+  const isJpeg = signature[0] === 0xff && signature[1] === 0xd8 && signature[2] === 0xff;
+  const isPng = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
+    .every((byte, index) => signature[index] === byte);
+  const isWebp =
+    String.fromCharCode(...signature.slice(0, 4)) === 'RIFF' &&
+    String.fromCharCode(...signature.slice(8, 12)) === 'WEBP';
+  const signatureMatches =
+    (file.type === 'image/jpeg' && isJpeg) ||
+    (file.type === 'image/png' && isPng) ||
+    (file.type === 'image/webp' && isWebp);
+
+  if (!signatureMatches) {
+    toast.error('Le contenu du fichier ne correspond pas a une image valide');
+    return false;
+  }
+
   return true;
 }
 
-// Session Security
-export function configureSessionSecurity() {
-  supabase.auth.onAuthStateChange((event, session) => {
-    if (event === 'SIGNED_IN') {
-      // Régénérer le CSRF token à chaque connexion
-      const newCsrfToken = generateCsrfToken();
-      sessionStorage.setItem('csrf_token', newCsrfToken);
-      
-      // Configurer les cookies de session
-      document.cookie = 'same-site=strict; secure';
-    }
-  });
-}
-
-// Headers Security
-export const securityHeaders = {
-  'Content-Security-Policy': 
-    "default-src 'self'; " +
-    "img-src 'self' https://images.unsplash.com data:; " +
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
-    "style-src 'self' 'unsafe-inline'; " +
-    "connect-src 'self' https://*.supabase.co wss://*.supabase.co;",
-  'X-Frame-Options': 'DENY',
-  'X-Content-Type-Options': 'nosniff',
-  'Referrer-Policy': 'strict-origin-when-cross-origin',
-  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
-  'Strict-Transport-Security': 'max-age=31536000; includeSubDomains'
-};
-
-// Password Validation
 export function validatePassword(password: string): { isValid: boolean; message: string } {
-  const minLength = 8;
   const hasUpperCase = /[A-Z]/.test(password);
   const hasLowerCase = /[a-z]/.test(password);
   const hasNumbers = /\d/.test(password);
   const hasSpecialChar = /[!@#$%^&*(),.?":{}|<>]/.test(password);
-  
-  if (password.length < minLength) {
-    return { isValid: false, message: 'Le mot de passe doit contenir au moins 8 caractères' };
+
+  if (password.length < 8) {
+    return { isValid: false, message: 'Le mot de passe doit contenir au moins 8 caracteres' };
   }
-  
+
   if (!hasUpperCase || !hasLowerCase) {
     return { isValid: false, message: 'Le mot de passe doit contenir des majuscules et des minuscules' };
   }
-  
+
   if (!hasNumbers) {
     return { isValid: false, message: 'Le mot de passe doit contenir au moins un chiffre' };
   }
-  
+
   if (!hasSpecialChar) {
-    return { isValid: false, message: 'Le mot de passe doit contenir au moins un caractère spécial' };
+    return { isValid: false, message: 'Le mot de passe doit contenir au moins un caractere special' };
   }
-  
+
   return { isValid: true, message: 'Mot de passe valide' };
-}
-
-// URL Validation
-export function validateUrl(url: string): boolean {
-  try {
-    const parsedUrl = new URL(url);
-    return ['http:', 'https:'].includes(parsedUrl.protocol);
-  } catch {
-    return false;
-  }
-}
-
-// SQL Injection Prevention
-export function sanitizeSqlInput(input: string): string {
-  return input.replace(/['";\\]/g, '');
 }

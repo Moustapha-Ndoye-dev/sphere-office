@@ -1,22 +1,10 @@
-import { type ClassValue, clsx } from 'clsx';
-import { twMerge } from 'tailwind-merge';
-
-export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs));
-}
-
 export function formatPrice(price: number) {
-  return new Intl.NumberFormat('fr-FR', {
-    style: 'currency',
-    currency: 'XOF',
+  const formattedAmount = new Intl.NumberFormat('fr-FR', {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
-  }).format(price);
-}
+  })
+    .format(price)
+    .replace(/\u202f|\u00a0/g, ' ');
 
-export function calculateCartTotal(items: Array<{ product: { price: number; sale_price: number | null }; quantity: number }>) {
-  return items.reduce((total, item) => {
-    const price = item.product.sale_price || item.product.price;
-    return total + (price * item.quantity);
-  }, 0);
+  return `${formattedAmount} FCFA`;
 }

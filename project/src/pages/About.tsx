@@ -1,138 +1,229 @@
 import React from 'react';
-import { Building, Users, Award, Globe } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { ArrowRight, Award, Building2, Leaf, Users } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { supabase } from '../lib/supabase';
+import { getProducts } from '../services/products';
+
+const STORY_IMAGES = [
+  'https://images.unsplash.com/photo-1497366811353-6870744d04b2?auto=format&fit=crop&w=900&q=80',
+  'https://images.unsplash.com/photo-1497366754035-f200968a6e72?auto=format&fit=crop&w=900&q=80',
+  'https://images.unsplash.com/photo-1497366412874-3415097a27e7?auto=format&fit=crop&w=900&q=80',
+];
+
+const VALUES = [
+  {
+    icon: Building2,
+    title: 'Exigence',
+    description: 'Des produits et une presentation qui renforcent la credibilite de votre environnement de travail.',
+  },
+  {
+    icon: Users,
+    title: 'Accompagnement',
+    description: 'Une experience plus simple pour choisir, comparer et contacter rapidement.',
+  },
+  {
+    icon: Award,
+    title: 'Qualite percue',
+    description: "Un soin particulier apporte au confort, a l'usage et a l'image professionnelle.",
+  },
+  {
+    icon: Leaf,
+    title: 'Cohesion',
+    description: 'Un catalogue plus coherent, au service des besoins reels des entreprises et des equipes.',
+  },
+];
+
+function AnimatedCounter({ value, label, delay = 0 }: { value: string; label: string; delay?: number }) {
+  const [display, setDisplay] = React.useState('--');
+  const ref = React.useRef<HTMLDivElement>(null);
+  const hasAnimated = React.useRef(false);
+
+  React.useEffect(() => {
+    if (hasAnimated.current || value === '--') {
+      if (value === '--') setDisplay('--');
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (!entries[0].isIntersecting || hasAnimated.current) return;
+        hasAnimated.current = true;
+
+        const numValue = parseInt(value, 10);
+        if (isNaN(numValue)) {
+          setDisplay(value);
+          observer.disconnect();
+          return;
+        }
+
+        const duration = 1400;
+        const start = Date.now();
+
+        const tick = () => {
+          const elapsed = Date.now() - start;
+          const progress = Math.min(elapsed / duration, 1);
+          const eased = 1 - Math.pow(2, -10 * progress);
+          setDisplay(String(Math.round(eased * numValue)));
+          if (progress < 1) requestAnimationFrame(tick);
+        };
+
+        requestAnimationFrame(tick);
+        observer.disconnect();
+      },
+      { threshold: 0.6 }
+    );
+
+    if (ref.current) observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, [value]);
+
+  return (
+    <div
+      ref={ref}
+      className="stat-card"
+      data-reveal="scale"
+      data-delay={String(delay)}
+    >
+      <p className="counter-num text-shimmer text-4xl font-extrabold leading-none sm:text-5xl">{display}</p>
+      <p className="mt-4 text-[10px] font-semibold uppercase tracking-[0.24em] text-slate-400">{label}</p>
+    </div>
+  );
+}
 
 export function About() {
-  const values = [
-    {
-      icon: Building,
-      title: 'Excellence',
-      description: 'Nous nous engageons à fournir des produits de la plus haute qualité pour votre espace de travail.',
+  const { data: productsCount, isError: isProductsCountError } = useQuery({
+    queryKey: ['about-products-count'],
+    queryFn: async () => {
+      const result = await getProducts(1, 1);
+      return result.totalCount;
     },
-    {
-      icon: Users,
-      title: 'Service client',
-      description: 'Notre équipe dévouée est là pour vous accompagner et répondre à tous vos besoins.',
+  });
+
+  const { data: categoriesCount, isError: isCategoriesCountError } = useQuery({
+    queryKey: ['about-categories-count'],
+    queryFn: async () => {
+      const { count, error } = await supabase.from('categories').select('*', { count: 'exact', head: true });
+      if (error) throw error;
+      return count || 0;
     },
-    {
-      icon: Award,
-      title: 'Innovation',
-      description: 'Nous recherchons constamment les dernières tendances et solutions pour améliorer votre environnement de travail.',
-    },
-    {
-      icon: Globe,
-      title: 'Durabilité',
-      description: 'Nous nous engageons à minimiser notre impact environnemental à travers nos produits et pratiques.',
-    },
+  });
+
+  const metrics = [
+    { value: isProductsCountError ? '--' : String(productsCount ?? '--'), label: 'Produits au catalogue' },
+    { value: isCategoriesCountError ? '--' : String(categoriesCount ?? '--'), label: 'Collections disponibles' },
+    { value: 'B2B', label: 'Approche orientee entreprise' },
+    { value: '1', label: 'Vitrine plus coherente' },
   ];
 
   return (
-    <div className="container mx-auto px-4 py-8 sm:py-12">
-      {/* Section Hero */}
-      <div className="text-center mb-10 sm:mb-16">
-        <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 dark:text-gray-100 mb-3 sm:mb-4">
-          À propos de Sphere Office
-        </h1>
-        <p className="max-w-2xl mx-auto text-base sm:text-lg text-gray-600 dark:text-gray-400">
-          Votre partenaire de confiance pour tous vos besoins en fournitures de bureau depuis 2020.
-        </p>
-      </div>
+    <div className="overflow-hidden bg-slate-50 dark:bg-slate-950">
 
-      {/* Notre Histoire */}
-      <section className="mb-16 sm:mb-20">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 sm:gap-12 items-center">
-          <div className="order-2 md:order-1">
-            <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 mb-4 sm:mb-6">
-              Notre Histoire
-            </h2>
-            <div className="space-y-3 sm:space-y-4 text-gray-600 dark:text-gray-400">
-              <p className="text-sm sm:text-base">
-                Fondée en 2020, Sphere Office est née de la vision d'offrir des solutions
-                innovantes et durables pour l'aménagement des espaces de travail modernes.
-              </p>
-              <p className="text-sm sm:text-base">
-                Notre mission est de transformer les environnements professionnels en
-                espaces inspirants où la productivité et le bien-être se rencontrent.
-              </p>
-              <p className="text-sm sm:text-base">
-                Aujourd'hui, nous sommes fiers de servir des milliers de clients à
-                travers la France, des startups aux grandes entreprises.
-              </p>
-            </div>
+      {/* ── Hero ──────────────────────────────────────────────── */}
+      <section className="grain-overlay mx-auto grid w-full max-w-[1800px] items-center gap-10 px-4 py-12 sm:px-6 sm:py-16 lg:gap-16 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:px-8 lg:py-20 2xl:px-12">
+        <div>
+          <p className="section-label animate-fade-in">A propos</p>
+          <h1
+            className="animate-fade-in-up mt-5 font-display text-[2rem] font-bold leading-[1.12] tracking-tight text-slate-950 sm:text-4xl md:text-[3.4rem] md:leading-[1.08] dark:text-white"
+            style={{ animationDelay: '100ms' }}
+          >
+            Construire un espace de travail plus clair, plus fort, plus professionnel.
+          </h1>
+          <p
+            className="animate-fade-in-up mt-6 max-w-2xl text-lg leading-8 text-slate-600 dark:text-slate-300"
+            style={{ animationDelay: '200ms' }}
+          >
+            Sphere Office est concu comme un point de rencontre entre l'image de marque, le confort d'usage et l'efficacite au quotidien.
+          </p>
+          <p
+            className="animate-fade-in-up mt-5 max-w-2xl text-base leading-8 text-slate-500 dark:text-slate-400"
+            style={{ animationDelay: '280ms' }}
+          >
+            Notre ambition est simple : proposer un catalogue qui aide reellement a choisir de bons produits, a mieux se projeter et a contacter rapidement l'entreprise pour avancer sans friction.
+          </p>
+          <div
+            className="animate-fade-in-up mt-10 flex flex-wrap gap-4"
+            style={{ animationDelay: '360ms' }}
+          >
+            <Link
+              to="/products"
+              className="btn-liquid btn-lift inline-flex items-center rounded-full bg-sky-900 px-6 py-3.5 text-sm font-semibold text-white shadow-md shadow-sky-900/20 transition-all hover:bg-sky-800 dark:bg-sky-500 dark:hover:bg-sky-400"
+            >
+              Explorer la boutique
+            </Link>
+            <Link
+              to="/contact"
+              className="inline-flex items-center rounded-full border border-slate-300 px-6 py-3.5 text-sm font-semibold text-slate-900 transition-all hover:border-sky-400 hover:text-sky-800 dark:border-slate-700 dark:text-white dark:hover:border-sky-400 dark:hover:text-sky-300"
+            >
+              Discuter avec nous
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Link>
           </div>
-          <div className="relative aspect-video rounded-lg overflow-hidden shadow-lg order-1 md:order-2">
+        </div>
+
+        {/* Image mosaic */}
+        <div className="grid grid-cols-2 gap-4" data-reveal="fade-right" data-delay="150">
+          <div className="space-y-4 sm:pt-10">
             <img
-              src="https://images.unsplash.com/photo-1497366216548-37526070297c?auto=format&fit=crop&w=1200"
-              alt="Notre équipe"
-              className="w-full h-full object-cover"
+              src={STORY_IMAGES[0]}
+              alt="Showroom Sphere Office"
+              className="h-52 w-full rounded-[26px] object-cover shadow-xl transition-transform duration-500 hover:-translate-y-1 sm:h-72 sm:rounded-[30px]"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+            <img
+              src={STORY_IMAGES[1]}
+              alt="Materiaux et accessoires premium"
+              className="h-36 w-full rounded-[22px] object-cover shadow-xl transition-transform duration-500 hover:-translate-y-1 sm:h-48 sm:rounded-[26px]"
+            />
+          </div>
+          <img
+            src={STORY_IMAGES[2]}
+            alt="Bureau moderne et lumineux"
+            className="h-52 w-full rounded-[26px] object-cover shadow-xl transition-transform duration-500 hover:-translate-y-1 sm:h-[480px] sm:rounded-[30px]"
+          />
+        </div>
+      </section>
+
+      {/* ── Metrics ────────────────────────────────────────────── */}
+      <section className="bg-white py-14 sm:py-18 md:py-22 dark:bg-slate-900">
+        <div className="mx-auto w-full max-w-[1800px] px-4 sm:px-6 lg:px-8 2xl:px-12">
+          <div className="mb-10 text-center" data-reveal>
+            <p className="section-label justify-center">En chiffres</p>
+            <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">
+              Un apercu de l'experience Sphere Office en quelques donnees cles.
+            </p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4 sm:gap-5">
+            {metrics.map((metric, i) => (
+              <AnimatedCounter key={metric.label} value={metric.value} label={metric.label} delay={i * 90} />
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Nos Valeurs */}
-      <section className="mb-16 sm:mb-20">
-        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 text-center mb-8 sm:mb-12">
-          Nos Valeurs
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-8">
-          {values.map((value) => (
+      {/* ── Values ─────────────────────────────────────────────── */}
+      <section className="mx-auto w-full max-w-[1800px] px-4 py-14 sm:px-6 sm:py-20 lg:px-8 md:py-24 2xl:px-12">
+        <div className="max-w-2xl" data-reveal>
+          <p className="section-label">Notre approche</p>
+          <h2 className="mt-4 font-display text-3xl font-bold tracking-tight text-slate-950 md:text-4xl dark:text-white">
+            Une experience digitale plus digne des produits presentes.
+          </h2>
+        </div>
+
+        <div className="mt-12 grid gap-5 sm:grid-cols-2 md:gap-6 xl:grid-cols-4">
+          {VALUES.map((value, i) => (
             <div
               key={value.title}
-              className="bg-white dark:bg-gray-800 rounded-lg p-5 sm:p-6 text-center shadow-md hover:shadow-lg transition-shadow duration-300"
+              data-reveal="scale"
+              data-delay={String(i * 90)}
+              className="value-card-accent group rounded-[26px] border border-slate-200 bg-white p-7 shadow-[0_16px_50px_-32px_rgba(15,23,42,0.35)] transition-all duration-350 hover:-translate-y-2 hover:border-sky-200/70 hover:shadow-[0_28px_64px_-28px_rgba(15,23,42,0.4)] dark:border-slate-800 dark:bg-slate-900 dark:hover:border-sky-900/60"
             >
-              <div className="inline-flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 bg-primary-100 dark:bg-primary-900/50 text-primary-600 dark:text-primary-400 rounded-lg mb-3 sm:mb-4">
-                <value.icon className="h-5 w-5 sm:h-6 sm:w-6" />
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-sky-100 text-sky-900 transition-all duration-300 group-hover:scale-110 group-hover:bg-sky-900 group-hover:text-white dark:bg-sky-950/70 dark:text-sky-200 dark:group-hover:bg-sky-600">
+                <value.icon className="h-5 w-5" />
               </div>
-              <h3 className="text-lg sm:text-xl font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                {value.title}
-              </h3>
-              <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
-                {value.description}
-              </p>
+              <h3 className="mt-6 text-xl font-bold text-slate-950 dark:text-white">{value.title}</h3>
+              <p className="mt-3 text-sm leading-7 text-slate-500 dark:text-slate-400">{value.description}</p>
             </div>
           ))}
-        </div>
-      </section>
-
-      {/* Chiffres Clés */}
-      <section>
-        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-100 text-center mb-8 sm:mb-12">
-          Chiffres Clés
-        </h2>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 sm:gap-8">
-          <div className="text-center p-4 sm:p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
-            <div className="text-3xl sm:text-4xl font-bold text-primary-600 dark:text-primary-400 mb-2">
-              10k+
-            </div>
-            <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-              Clients Satisfaits
-            </div>
-          </div>
-          <div className="text-center p-4 sm:p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
-            <div className="text-3xl sm:text-4xl font-bold text-primary-600 dark:text-primary-400 mb-2">
-              5k+
-            </div>
-            <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-              Produits
-            </div>
-          </div>
-          <div className="text-center p-4 sm:p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
-            <div className="text-3xl sm:text-4xl font-bold text-primary-600 dark:text-primary-400 mb-2">
-              24h
-            </div>
-            <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-              Délai de Livraison
-            </div>
-          </div>
-          <div className="text-center p-4 sm:p-6 bg-white dark:bg-gray-800 rounded-lg shadow-md">
-            <div className="text-3xl sm:text-4xl font-bold text-primary-600 dark:text-primary-400 mb-2">
-              98%
-            </div>
-            <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
-              Taux de Satisfaction
-            </div>
-          </div>
         </div>
       </section>
     </div>
